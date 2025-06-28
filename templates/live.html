@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Prediksi Langsung Kamera</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            background-color: #28a745;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+            border-top-left-radius: 15px;
+            border-top-right-radius: 15px;
+        }
+        #video-container {
+            position: relative;
+            text-align: center;
+        }
+        #video {
+            border-radius: 10px;
+            border: 1px solid #ddd;
+        }
+        #prediction-result {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <h4>📹 Prediksi Penyakit Daun (Live)</h4>
+            </div>
+            <div class="card-body">
+                <div id="video-container">
+                    <video id="video" width="100%" height="auto" autoplay playsinline></video>
+                </div>
+                <div id="prediction-result">
+                    <h4>Hasil Prediksi:</h4>
+                    <h5 id="prediction-text" class="text-primary">Arahkan kamera ke daun...</h5>
+                    <p>Tingkat Keyakinan: <strong id="confidence-text">-</strong></p>
+                </div>
+                 <a href="/" class="btn btn-secondary btn-block mt-3">Kembali ke Unggah Gambar</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const predictionText = document.getElementById('prediction-text');
+        const confidenceText = document.getElementById('confidence-text');
+        let lastPredictionTime = 0;
+        const predictionInterval = 2000; // Prediksi setiap 2 detik
+
+        // Mengakses kamera
+        if (navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                .then(function (stream) {
+                    video.srcObject = stream;
+                })
+                .catch(function (error) {
+                    console.log("Something went wrong!", error);
+                    alert("Tidak dapat mengakses kamera. Pastikan Anda memberikan izin.");
+                });
+        }
+
+        // Mengirim frame untuk prediksi
+        video.addEventListener('loadeddata', () => {
+            setInterval(() => {
+                const now = Date.now();
+                if (now - lastPredictionTime > predictionInterval) {
+                    lastPredictionTime = now;
+                    predictFrame();
+                }
+            }, 500); // Cek setiap 500ms jika sudah waktunya prediksi
+        });
+
+        function predictFrame() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataURL = canvas.toDataURL('image/jpeg');
+
+            fetch('/predict_frame', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ image: dataURL })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.prediction) {
+                    predictionText.textContent = data.prediction;
+                    confidenceText.textContent = data.confidence;
+                } else if (data.error) {
+                    console.error('Prediction error:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+    </script>
+</body>
+</html>
