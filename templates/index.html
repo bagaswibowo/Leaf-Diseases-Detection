@@ -11,20 +11,30 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         }
         .container {
-            max-width: 700px;
+            max-width: 800px;
+            margin-top: 2rem;
         }
         .card {
-            margin-top: 2rem;
             border: none;
             border-radius: 15px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
         .card-header {
-            background-color: #007bff;
+            background: linear-gradient(45deg, #007bff, #28a745);
             color: white;
             font-weight: bold;
             border-top-left-radius: 15px;
             border-top-right-radius: 15px;
+        }
+        .nav-tabs .nav-link {
+            border: none;
+            color: #007bff;
+            font-weight: 500;
+        }
+        .nav-tabs .nav-link.active {
+            background-color: #007bff;
+            color: white;
+            border-radius: 8px 8px 0 0;
         }
         .btn-primary {
             background-color: #007bff;
@@ -32,6 +42,13 @@
         }
         .btn-primary:hover {
             background-color: #0056b3;
+        }
+        .btn-success {
+            background-color: #28a745;
+            border: none;
+        }
+        .btn-success:hover {
+            background-color: #1e7e34;
         }
         .image-preview {
             margin-top: 1.5rem;
@@ -53,6 +70,37 @@
         .prediction-result h4 {
             margin-bottom: 0.5rem;
         }
+        #video-container {
+            position: relative;
+            text-align: center;
+        }
+        #video {
+            border-radius: 10px;
+            border: 1px solid #ddd;
+            max-width: 100%;
+            height: auto;
+        }
+        #prediction-result-live {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .tab-content {
+            padding: 1.5rem 0;
+        }
+        #video.hidden {
+            display: none;
+        }
+        #camera-placeholder {
+            background-color: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+        }
+        #prediction-result-live.hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -62,29 +110,66 @@
                 <h4>🌿 Klasifikasi Penyakit Daun 🌿</h4>
             </div>
             <div class="card-body">
-                <p class="text-center">Unggah gambar daun untuk mendeteksi penyakitnya.</p>
-                <form method="post" enctype="multipart/form-data" class="text-center">
-                    <div class="custom-file mb-3">
-                        <input type="file" class="custom-file-input" name="file" id="fileInput" accept="image/*" required>
-                        <label class="custom-file-label" for="fileInput">Pilih file gambar...</label>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-block">Prediksi</button>
-                </form>
+                <!-- Tab Navigation -->
+                <ul class="nav nav-tabs" id="myTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link active" id="upload-tab" data-toggle="tab" href="#upload" role="tab" aria-controls="upload" aria-selected="true">
+                            📁 Upload Gambar
+                        </a>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link" id="live-tab" data-toggle="tab" href="#live" role="tab" aria-controls="live" aria-selected="false">
+                            📹 Live Kamera
+                        </a>
+                    </li>
+                </ul>
 
-                {% if filename %}
-                    <div class="image-preview">
-                        <h5>Gambar yang Diunggah:</h5>
-                        <img src="{{ url_for('display_image', filename=filename) }}" alt="Uploaded Image">
-                    </div>
-                {% endif %}
+                <!-- Tab Content -->
+                <div class="tab-content" id="myTabContent">
+                    <!-- Upload Tab -->
+                    <div class="tab-pane fade show active" id="upload" role="tabpanel" aria-labelledby="upload-tab">
+                        <p class="text-center">Unggah gambar daun untuk mendeteksi penyakitnya.</p>
+                        <form method="post" enctype="multipart/form-data" class="text-center">
+                            <div class="custom-file mb-3">
+                                <input type="file" class="custom-file-input" name="file" id="fileInput" accept="image/*" required>
+                                <label class="custom-file-label" for="fileInput">Pilih file gambar...</label>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block">Prediksi</button>
+                        </form>
 
-                {% if prediction %}
-                    <div class="prediction-result text-center">
-                        <h4>Hasil Prediksi:</h4>
-                        <h5 class="text-success">{{ prediction }}</h5>
-                        <p>Tingkat Keyakinan: <strong>{{ confidence }}</strong></p>
+                        {% if filename %}
+                            <div class="image-preview">
+                                <h5>Gambar yang Diunggah:</h5>
+                                <img src="{{ url_for('display_image', filename=filename) }}" alt="Uploaded Image">
+                            </div>
+                        {% endif %}
+
+                        {% if prediction %}
+                            <div class="prediction-result text-center">
+                                <h4>Hasil Prediksi:</h4>
+                                <h5 class="text-success">{{ prediction }}</h5>
+                                <p>Tingkat Keyakinan: <strong>{{ confidence }}</strong></p>
+                            </div>
+                        {% endif %}
                     </div>
-                {% endif %}
+
+                    <!-- Live Camera Tab -->
+                    <div class="tab-pane fade" id="live" role="tabpanel" aria-labelledby="live-tab">
+                        <p class="text-center">Arahkan kamera ke daun untuk deteksi real-time.</p>
+                        <div id="video-container">
+                            <video id="video" class="hidden" width="100%" height="auto" autoplay playsinline></video>
+                            <div id="camera-placeholder" class="text-center p-4">
+                                <p class="mb-2">📹 Kamera belum aktif</p>
+                                <button id="startCamera" class="btn btn-success">Aktifkan Kamera</button>
+                            </div>
+                        </div>
+                        <div id="prediction-result-live" class="hidden">
+                            <h4>Hasil Prediksi:</h4>
+                            <h5 id="prediction-text" class="text-primary">Arahkan kamera ke daun...</h5>
+                            <p>Tingkat Keyakinan: <strong id="confidence-text">-</strong></p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -93,11 +178,131 @@
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
-        // Menampilkan nama file di input form
+        // Upload tab functionality
         document.querySelector('.custom-file-input').addEventListener('change', function(e) {
             var fileName = document.getElementById("fileInput").files[0].name;
             var nextSibling = e.target.nextElementSibling;
             nextSibling.innerText = fileName;
+        });
+
+        // Live camera functionality
+        const video = document.getElementById('video');
+        const predictionText = document.getElementById('prediction-text');
+        const confidenceText = document.getElementById('confidence-text');
+        const startCameraBtn = document.getElementById('startCamera');
+        const cameraPlaceholder = document.getElementById('camera-placeholder');
+        const predictionResultLive = document.getElementById('prediction-result-live');
+        let lastPredictionTime = 0;
+        let stream = null;
+        const predictionInterval = 2000; // Prediksi setiap 2 detik
+
+        // Start camera button event
+        startCameraBtn.addEventListener('click', function() {
+            startCamera();
+        });
+
+        // Start camera when live tab is activated
+        document.getElementById('live-tab').addEventListener('shown.bs.tab', function (e) {
+            // Auto start camera when switching to live tab
+            if (!stream) {
+                setTimeout(startCamera, 300);
+            }
+        });
+
+        // Stop camera when switching away from live tab
+        document.getElementById('upload-tab').addEventListener('shown.bs.tab', function (e) {
+            stopCamera();
+        });
+
+        function startCamera() {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    } 
+                })
+                .then(function (mediaStream) {
+                    stream = mediaStream;
+                    video.srcObject = stream;
+                    video.classList.remove('hidden');
+                    cameraPlaceholder.style.display = 'none';
+                    predictionResultLive.classList.remove('hidden');
+                    
+                    video.addEventListener('loadeddata', startPrediction);
+                })
+                .catch(function (error) {
+                    console.log("Camera error:", error);
+                    alert("Tidak dapat mengakses kamera. Pastikan Anda memberikan izin kamera.");
+                });
+            } else {
+                alert("Browser Anda tidak mendukung akses kamera.");
+            }
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                video.srcObject = null;
+                video.classList.add('hidden');
+                cameraPlaceholder.style.display = 'block';
+                predictionResultLive.classList.add('hidden');
+            }
+        }
+
+        function startPrediction() {
+            setInterval(() => {
+                const now = Date.now();
+                if (now - lastPredictionTime > predictionInterval && video.videoWidth > 0) {
+                    lastPredictionTime = now;
+                    predictFrame();
+                }
+            }, 500); // Cek setiap 500ms jika sudah waktunya prediksi
+        }
+
+        function predictFrame() {
+            if (!video.videoWidth || !video.videoHeight) return;
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataURL = canvas.toDataURL('image/jpeg');
+
+            fetch('/predict_frame', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ image: dataURL })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.prediction) {
+                    predictionText.textContent = data.prediction;
+                    predictionText.className = 'text-success';
+                    confidenceText.textContent = data.confidence;
+                } else if (data.error) {
+                    predictionText.textContent = 'Error dalam prediksi';
+                    predictionText.className = 'text-danger';
+                    confidenceText.textContent = '-';
+                    console.error('Prediction error:', data.error);
+                }
+            })
+            .catch(error => {
+                predictionText.textContent = 'Error koneksi';
+                predictionText.className = 'text-danger';
+                confidenceText.textContent = '-';
+                console.error('Error:', error);
+            });
+        }
+
+        // Clean up camera when page is unloaded
+        window.addEventListener('beforeunload', function() {
+            stopCamera();
         });
     </script>
 </body>
