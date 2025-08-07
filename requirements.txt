@@ -1,0 +1,6 @@
+flask
+numpy
+tensorflow==2.15.0
+tensorflow-hub==0.15.0
+Pillow
+opencv-python
